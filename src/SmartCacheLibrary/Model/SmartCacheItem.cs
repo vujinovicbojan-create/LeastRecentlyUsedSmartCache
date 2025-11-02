@@ -12,6 +12,6 @@
             AccessCount = 1;
         }
 
-        public void IncrementAccess() { AccessCount += 1; }
+        public void IncrementAccess() { AccessCount++; }
     }
 }
