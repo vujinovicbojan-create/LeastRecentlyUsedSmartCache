@@ -41,9 +41,57 @@ namespace SmartCacheLibrary
                 }
 
                 var newItem = new SmartCacheItem<TKey, TValue>(key, value);
-                var newNode = new LinkedListNode<SmartCacheItem<TKey, TValue>>(newItem);
-                _lruList.AddFirst(newNode);
+                var newNode = _lruList.AddFirst(newItem);
                 _cacheData[key] = newNode;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+        public TValue Get(TKey key)
+        {
+            _lock.EnterUpgradeableReadLock();
+            try
+            {
+                if (!_cacheData.TryGetValue(key, out var node))
+                {
+                    throw new KeyNotFoundException($"Key '{key}' not found in cache.");
+                }
+
+                _lock.EnterWriteLock();
+                try
+                {
+                    node.Value.IncrementAccess();
+                    MoveToHead(node);
+                }
+                finally
+                {
+                    _lock.ExitWriteLock();
+                }
+
+                return node.Value.Value;
+            }
+            finally
+            {
+                _lock.ExitUpgradeableReadLock();
+            }
+        }
+
+        public bool Remove(TKey key)
+        {
+            _lock.EnterWriteLock();
+            try
+            {
+                if (_cacheData.TryGetValue(key, out var node))
+                {
+                    _lruList.Remove(node);
+                    _cacheData.Remove(key);
+                    return true;
+                }
+
+                return false;
             }
             finally
             {
@@ -54,7 +102,6 @@ namespace SmartCacheLibrary
         public void Clear()
         {
             _lock.EnterWriteLock();
-
             try
             {
                 _lruList.Clear();
@@ -69,7 +116,6 @@ namespace SmartCacheLibrary
         public bool ContainsKey(TKey key)
         {
             _lock.EnterReadLock();
-
             try
             {
                 return _cacheData.ContainsKey(key);
@@ -80,44 +126,15 @@ namespace SmartCacheLibrary
             }
         }
 
-        public TValue Get(TKey key)
-        {
-            _lock.EnterUpgradeableReadLock();
-            try
-            {
-                if (_cacheData.TryGetValue(key, out var item))
-                {
-                    _lock.EnterWriteLock();
-                    try
-                    {
-                        item.Value.IncrementAccess();
-                        MoveToHead(item);
-                    }
-                    finally
-                    {
-                        _lock.ExitWriteLock();
-                    }
-
-                    return item.Value.Value;
-                }
-
-                throw new KeyNotFoundException($"Key '{key}' not found in cache.");
-            }
-            finally
-            {
-                _lock.ExitUpgradeableReadLock();
-            }
-        }
-
         public IEnumerable<KeyValuePair<TKey, TValue>> GetMostFrequentlyAccessed(int count)
         {
             _lock.EnterReadLock();
             try
             {
                 return _lruList
-                    .OrderByDescending(n => n.AccessCount)
+                    .OrderByDescending(item => item.AccessCount)
                     .Take(count)
-                    .Select(n => new KeyValuePair<TKey, TValue>(n.Key, n.Value))
+                    .Select(item => new KeyValuePair<TKey, TValue>(item.Key, item.Value))
                     .ToList();
             }
             finally
@@ -126,32 +143,10 @@ namespace SmartCacheLibrary
             }
         }
 
-        public bool Remove(TKey key)
-        {
-            _lock.EnterWriteLock();
-
-            try
-            {
-                if (_cacheData.TryGetValue(key, out var item))
-                {
-                    _lruList.Remove(item);
-                    _cacheData.Remove(key);
-
-                    return true;
-                }
-
-                return false;
-            }
-            finally
-            {
-                _lock.ExitWriteLock();
-            }
-        }
-
         private void MoveToHead(LinkedListNode<SmartCacheItem<TKey, TValue>> node)
         {
-            if (node.List != _lruList)
-            {
+            if (_lruList.First == node) 
+            { 
                 return;
             }
 

@@ -44,7 +44,7 @@ public class SmartCacheTests : IClassFixture<SmartCacheFixture>
 
         var top2 = _cacheService.GetMostFrequentlyAccessed(2).ToList();
 
-        Assert.Equal(1, top2[0].Key); // Key 1 most frequently accessed
+        Assert.Equal(1, top2[0].Key); // Key 1 most frequently
         Assert.Equal(2, top2[1].Key); // Key 2 second
     }
 
