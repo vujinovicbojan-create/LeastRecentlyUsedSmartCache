@@ -1,6 +1,6 @@
 ﻿namespace SmartCacheTests;
 
-public class UnitTest1
+public class SmartCacheTests
 {
     [Fact]
     public void Test1()

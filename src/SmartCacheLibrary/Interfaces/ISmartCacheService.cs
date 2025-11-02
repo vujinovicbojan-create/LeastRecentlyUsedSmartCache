@@ -1,6 +1,6 @@
 ﻿namespace SmartCacheLibrary.Interfaces
 {
-    public interface ISmartCache<TKey, TValue>
+    public interface ISmartCacheService<TKey, TValue>
     {
         public void Add(TKey key, TValue value);
         public TValue Get(TKey key);
